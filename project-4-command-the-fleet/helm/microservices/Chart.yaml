@@ -1,0 +1,9 @@
+apiVersion: v2
+name: microservices
+description: >-
+  The 3 services from Project 3 (user, product, order), templated so the
+  same chart deploys to dev, staging, and production with different
+  values files - one chart, three environments, no copy-pasted YAML.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

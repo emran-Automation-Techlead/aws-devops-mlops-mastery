@@ -1,7 +1,12 @@
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 app = FastAPI(title="Product Service")
+
+# See user-service/main.py for why this is here - exposes GET /metrics
+# for Project 4's Prometheus/Grafana stack.
+Instrumentator().instrument(app).expose(app)
 
 
 class Product(BaseModel):

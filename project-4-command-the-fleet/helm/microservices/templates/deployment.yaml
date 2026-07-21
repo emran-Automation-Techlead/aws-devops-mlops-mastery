@@ -1,0 +1,86 @@
+{{- range $name, $svc := .Values.services }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+    {{- include "microservices.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ $svc.replicas }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  # RollingUpdate with maxUnavailable: 0 is what makes deployments
+  # zero-downtime: Kubernetes must start and health-check a NEW pod
+  # before it's allowed to remove an OLD one - there's never a moment
+  # with fewer healthy pods than you asked for.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+        {{- include "microservices.labels" $ | nindent 8 }}
+      annotations:
+        # Standard Prometheus auto-discovery annotations - this is how
+        # the kube-prometheus-stack (k8s/monitoring) finds these pods'
+        # /metrics endpoint without anyone manually registering a scrape
+        # target.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ $svc.port }}"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.ecrRegistry }}/box-everything-{{ $name }}:{{ $.Values.imageTag }}"
+          ports:
+            - containerPort: {{ $svc.port }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          # Two DIFFERENT probes, two different jobs: readiness controls
+          # whether THIS pod receives traffic right now (temporary
+          # problems, like warming a cache, don't kill the pod - they
+          # just pull it out of rotation). Liveness controls whether the
+          # pod gets restarted at all (a truly hung process). Conflating
+          # them is a common mistake - a slow-but-recovering pod
+          # shouldn't be killed, just temporarily skipped.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ $svc.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ $svc.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          env:
+            {{- range $key, $value := $svc.env }}
+            {{- if $value }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if eq $name "order-service" }}
+            - name: USER_SERVICE_URL
+              value: "http://user-service.{{ $.Release.Namespace }}.svc.cluster.local:8000"
+            - name: PRODUCT_SERVICE_URL
+              value: "http://product-service.{{ $.Release.Namespace }}.svc.cluster.local:8000"
+            {{- end }}
+            {{- range $svc.secretEnv }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .secretKey }}
+            {{- end }}
+---
+{{- end }}

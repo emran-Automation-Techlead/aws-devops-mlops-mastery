@@ -1,0 +1,13 @@
+# helm install/upgrade ... -f values.yaml -f values-dev.yaml --namespace dev
+albGroupName: microservices-dev
+
+services:
+  user-service:
+    replicas: 1
+    hpa: { minReplicas: 1, maxReplicas: 3, targetCPUUtilization: 70 }
+  product-service:
+    replicas: 1
+    hpa: { minReplicas: 1, maxReplicas: 3, targetCPUUtilization: 70 }
+  order-service:
+    replicas: 1
+    hpa: { minReplicas: 1, maxReplicas: 3, targetCPUUtilization: 70 }

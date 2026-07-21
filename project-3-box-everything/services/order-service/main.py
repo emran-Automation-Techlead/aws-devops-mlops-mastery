@@ -3,9 +3,14 @@ from datetime import datetime, timezone
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 app = FastAPI(title="Order Service")
+
+# See user-service/main.py for why this is here - exposes GET /metrics
+# for Project 4's Prometheus/Grafana stack.
+Instrumentator().instrument(app).expose(app)
 
 # Same code, different URLs depending on where it runs - this is the
 # whole point of reading these from the environment instead of hardcoding

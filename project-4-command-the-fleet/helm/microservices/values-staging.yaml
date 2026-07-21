@@ -1,0 +1,13 @@
+# helm install/upgrade ... -f values.yaml -f values-staging.yaml --namespace staging
+albGroupName: microservices-staging
+
+services:
+  user-service:
+    replicas: 2
+    hpa: { minReplicas: 2, maxReplicas: 6, targetCPUUtilization: 70 }
+  product-service:
+    replicas: 2
+    hpa: { minReplicas: 2, maxReplicas: 6, targetCPUUtilization: 70 }
+  order-service:
+    replicas: 2
+    hpa: { minReplicas: 2, maxReplicas: 6, targetCPUUtilization: 70 }

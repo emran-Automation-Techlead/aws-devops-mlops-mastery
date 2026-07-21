@@ -1,0 +1,61 @@
+# Base defaults, overridden per-environment by values-dev.yaml,
+# values-staging.yaml, values-production.yaml. This is the Helm pattern
+# for "one chart, many environments": never fork the templates, only
+# override values.
+awsRegion: us-east-1
+ecrRegistry: "" # set via --set or a values override: <account-id>.dkr.ecr.<region>.amazonaws.com
+imageTag: latest
+albGroupName: microservices
+
+services:
+  user-service:
+    port: 8000
+    path: /users
+    replicas: 2
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+    hpa:
+      minReplicas: 2
+      maxReplicas: 20
+      targetCPUUtilization: 70
+    env:
+      REDIS_URL: ""
+    secretEnv: []
+
+  product-service:
+    port: 8000
+    path: /products
+    replicas: 2
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+    hpa:
+      minReplicas: 2
+      maxReplicas: 20
+      targetCPUUtilization: 70
+    env: {}
+    secretEnv: []
+
+  order-service:
+    port: 8000
+    path: /orders
+    replicas: 2
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+    hpa:
+      minReplicas: 2
+      maxReplicas: 20
+      targetCPUUtilization: 70
+    # USER_SERVICE_URL / PRODUCT_SERVICE_URL are NOT set here - the
+    # deployment template computes them from .Release.Namespace using
+    # Kubernetes' own in-cluster DNS ("<service>.<namespace>.svc.cluster.local"),
+    # Kubernetes' equivalent of docker-compose's DNS from Project 3. This
+    # way the exact same values files work in dev/staging/production
+    # without a namespace ever being hardcoded here.
+    env: {}
+    secretEnv:
+      - name: EXAMPLE_API_KEY
+        secretName: app-config
+        secretKey: example_api_key

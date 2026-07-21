@@ -1,0 +1,25 @@
+# helm install/upgrade ... -f values.yaml -f values-production.yaml --namespace production
+# Per k8s/manifests/rbac, the "developers" group has NO access to this
+# namespace at all - only CI/CD service accounts and admins can deploy
+# here. See the RBAC section of the README.
+albGroupName: microservices-production
+
+services:
+  user-service:
+    replicas: 3
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    hpa: { minReplicas: 3, maxReplicas: 20, targetCPUUtilization: 70 }
+  product-service:
+    replicas: 3
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    hpa: { minReplicas: 3, maxReplicas: 20, targetCPUUtilization: 70 }
+  order-service:
+    replicas: 3
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    hpa: { minReplicas: 3, maxReplicas: 20, targetCPUUtilization: 70 }

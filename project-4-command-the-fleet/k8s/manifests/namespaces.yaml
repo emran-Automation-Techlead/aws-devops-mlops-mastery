@@ -1,0 +1,27 @@
+# Three namespaces, one cluster. Namespaces are Kubernetes' way of
+# subdividing one cluster into isolated-enough compartments - separate
+# RBAC rules, separate resource quotas, separate everything except the
+# underlying nodes themselves (a "noisy neighbor" pod in dev can still
+# starve a node that also has a production pod on it - namespaces alone
+# don't guarantee physical isolation, ResourceQuota + node affinity would
+# be the next step beyond what this project covers).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    environment: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+  labels:
+    environment: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    environment: production

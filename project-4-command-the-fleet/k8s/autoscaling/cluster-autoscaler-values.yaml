@@ -1,0 +1,38 @@
+# helm install cluster-autoscaler autoscaler/cluster-autoscaler \
+#   -n kube-system -f cluster-autoscaler-values.yaml \
+#   --set autoDiscovery.clusterName=command-the-fleet
+#
+# HPA (helm/microservices/templates/hpa.yaml) scales PODS - but if the
+# nodes are already full, more pods just sit Pending forever. Cluster
+# Autoscaler is the layer above HPA: it watches for Pending pods that
+# can't be scheduled due to insufficient node capacity, and adds EC2
+# nodes to the managed node group (infrastructure/eks/eks-cluster.tf) to
+# fit them - then removes nodes again once they're underutilized. HPA
+# without this only works until the cluster itself runs out of room.
+
+autoDiscovery:
+  clusterName: command-the-fleet
+  enabled: true
+
+awsRegion: us-east-1
+
+# IRSA - no static AWS credentials anywhere. This ServiceAccount name
+# must match exactly what infrastructure/eks/irsa.tf's
+# cluster_autoscaler_irsa module trusts
+# ("kube-system:cluster-autoscaler").
+rbac:
+  serviceAccount:
+    name: cluster-autoscaler
+    annotations:
+      eks.amazonaws.com/role-arn: "" # set via --set at install time from `terraform output cluster_autoscaler_role_arn`
+
+extraArgs:
+  # Never scale a node group below what min_size in Terraform allows, or
+  # above max_size - Cluster Autoscaler and Terraform agree on these
+  # bounds so they don't fight each other.
+  balance-similar-node-groups: true
+  skip-nodes-with-system-pods: false
+
+resources:
+  requests: { cpu: 100m, memory: 300Mi }
+  limits: { cpu: 200m, memory: 500Mi }

@@ -1,0 +1,21 @@
+{{- range $name, $svc := .Values.services }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  # ClusterIP - not exposed outside the cluster directly. External
+  # traffic only ever reaches these through the Ingress -> ALB (below),
+  # same "one entry point, path-routed" shape as Project 3's ALB, now
+  # expressed as a Kubernetes-native object instead of raw Terraform.
+  type: ClusterIP
+  selector:
+    app: {{ $name }}
+  ports:
+    - port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+---
+{{- end }}

@@ -1,0 +1,27 @@
+# ClusterRole = the PERMISSIONS definition, reusable across namespaces.
+# Defining permissions once and binding them per-namespace (see
+# developer-rolebinding.yaml) is what makes "developers can touch
+# dev/staging but not production" possible with one role definition
+# instead of three slightly-different ones.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: developer
+rules:
+  - apiGroups: ["", "apps", "autoscaling", "networking.k8s.io"]
+    resources:
+      - pods
+      - pods/log
+      - pods/exec
+      - deployments
+      - replicasets
+      - services
+      - configmaps
+      - horizontalpodautoscalers
+      - ingresses
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Deliberately NOT included: secrets. Developers can deploy and debug
+  # their own services without ever being able to read a Secret's
+  # contents (including the app-config ExternalSecret) - that stays
+  # limited to cluster admins and the service accounts that actually
+  # need it (like external-secrets' own IRSA-backed identity).

@@ -1,0 +1,44 @@
+# Same monorepo reasoning as the other project-N-ci.yml files. This one
+# validates the two things that are actually static-checkable without a
+# live cluster: Terraform syntax/formatting, and that the Helm chart
+# renders without errors (helm lint + template, no cluster needed for
+# either).
+name: Project 4 - Command the Fleet CI
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "project-4-command-the-fleet/**"
+  pull_request:
+    paths:
+      - "project-4-command-the-fleet/**"
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project-4-command-the-fleet/infrastructure/eks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+      - run: terraform fmt -check -diff
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint chart
+        run: helm lint project-4-command-the-fleet/helm/microservices -f project-4-command-the-fleet/helm/microservices/values-dev.yaml
+      - name: Render templates (catches broken Go template syntax)
+        run: |
+          helm template test project-4-command-the-fleet/helm/microservices \
+            -f project-4-command-the-fleet/helm/microservices/values-dev.yaml \
+            --set ecrRegistry=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+            --namespace dev

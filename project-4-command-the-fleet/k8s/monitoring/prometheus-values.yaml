@@ -1,0 +1,75 @@
+# helm install prometheus prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace -f prometheus-values.yaml
+#
+# kube-prometheus-stack bundles Prometheus + Grafana + Alertmanager +
+# the exporters that scrape node/pod/cluster metrics automatically -
+# installing these 4 things separately and wiring them together by hand
+# is a full day of yak-shaving this chart skips entirely.
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: 500m, memory: 1Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          # EBS-backed persistent storage - if the Prometheus pod gets
+          # rescheduled to a different node, its metric history moves
+          # with it instead of vanishing. This is the PVC/PV concept in
+          # practice: the pod is disposable, the volume isn't.
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+    # Auto-discovers ServiceMonitors/PodMonitors cluster-wide instead of
+    # requiring them to carry a specific release label - simpler for a
+    # single-cluster teaching setup than the chart's default scoping.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+grafana:
+  adminPassword: "" # set via --set grafana.adminPassword=... at install time, never committed here
+  # Wires up Loki (installed separately - see loki-values.yaml) as a
+  # second datasource in this same Grafana, so logs and metrics live in
+  # one UI instead of two separate Grafana logins.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki:3100
+      access: proxy
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 5Gi
+  # Ships the RED-method dashboard (grafana-dashboard-red.json) as a
+  # provisioned dashboard automatically on install - no manual
+  # "import dashboard by ID" click-through needed.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboardsConfigMaps:
+    default: grafana-dashboard-red
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi

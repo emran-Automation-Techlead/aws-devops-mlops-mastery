@@ -1,0 +1,31 @@
+# helm install loki grafana/loki-stack -n monitoring -f loki-values.yaml
+#
+# Loki is "Prometheus for logs" - same label-based query model
+# (LogQL looks a lot like PromQL), much cheaper to run than a full
+# Elasticsearch stack for the log volume a project like this produces.
+# loki-stack bundles Loki itself + Promtail (the agent that tails every
+# pod's logs and ships them in).
+
+loki:
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+
+promtail:
+  enabled: true
+  # Promtail runs as a DaemonSet - deliberately ONE pod per node, not a
+  # replica count you choose. It needs to read the log files sitting on
+  # that specific node's disk, so "one per node, always" is the only
+  # topology that makes sense - this is exactly what DaemonSets are for,
+  # as opposed to a Deployment's "N interchangeable replicas anywhere."
+  config:
+    snippets:
+      pipelineStages:
+        - docker: {}
+
+grafana:
+  # This chart's own Grafana is disabled - reusing the ONE Grafana
+  # kube-prometheus-stack already installed (prometheus-values.yaml)
+  # instead of running two separate Grafanas with two separate logins.
+  enabled: false

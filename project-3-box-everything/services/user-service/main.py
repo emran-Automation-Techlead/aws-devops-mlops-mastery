@@ -2,9 +2,17 @@ import json
 import os
 
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 app = FastAPI(title="User Service")
+
+# Exposes GET /metrics in Prometheus format (http_requests_total,
+# http_request_duration_seconds histograms, labeled by handler/method/
+# status). Project 4's Grafana RED-method dashboard reads exactly these
+# metrics - added here, not there, because instrumentation belongs next
+# to the code it's measuring.
+Instrumentator().instrument(app).expose(app)
 
 # Redis is a nice-to-have cache, not a hard dependency. Locally (docker
 # compose) REDIS_URL points at the redis container. On ECS Fargate no

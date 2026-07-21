@@ -1,0 +1,34 @@
+# ONE Ingress, one ALB, path-routed to all 3 services - the AWS Load
+# Balancer Controller (installed via Helm, see docs/architecture.md)
+# watches for Ingress objects with this ingress.class and provisions/
+# updates a real ALB to match. This replaces Project 3's hand-written
+# aws_lb / aws_lb_listener_rule Terraform resources with the Kubernetes-
+# native equivalent - same ALB under the hood, now managed by the
+# cluster instead of by `terraform apply`.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # Ingress objects sharing a group.name merge into ONE ALB instead of
+    # each getting its own - same reasoning as Project 3's single ALB
+    # with 3 target groups, avoiding 3x the fixed ALB cost.
+    alb.ingress.kubernetes.io/group.name: {{ .Values.albGroupName }}
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+spec:
+  rules:
+    - http:
+        paths:
+          {{- range $name, $svc := .Values.services }}
+          - path: {{ $svc.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $name }}
+                port:
+                  number: {{ $svc.port }}
+          {{- end }}
