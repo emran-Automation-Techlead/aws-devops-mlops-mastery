@@ -1,0 +1,41 @@
+# Read by CodeBuild. Unlike Project 2 (one artifact, handed to
+# CodeDeploy), this pipeline's CodeBuild stage IS the deploy: it builds
+# and pushes 3 images to ECR, then tells ECS to roll them out - there's
+# no separate CodeDeploy stage because ECS's own rolling deployment
+# already handles the zero-downtime cutover.
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to ECR..."
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+      - GIT_SHA=$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c1-7)
+      - VERSION=$(cat project-3-box-everything/VERSION 2>/dev/null || echo "v0.0.0")
+
+  build:
+    commands:
+      - |
+        for SERVICE in user-service product-service order-service; do
+          echo "==> Building $SERVICE"
+          docker build -t "$ECR_REGISTRY/box-everything-$SERVICE:latest" "project-3-box-everything/services/$SERVICE"
+          docker tag "$ECR_REGISTRY/box-everything-$SERVICE:latest" "$ECR_REGISTRY/box-everything-$SERVICE:$VERSION"
+          docker tag "$ECR_REGISTRY/box-everything-$SERVICE:latest" "$ECR_REGISTRY/box-everything-$SERVICE:$GIT_SHA"
+        done
+
+  post_build:
+    commands:
+      - |
+        for SERVICE in user-service product-service order-service; do
+          echo "==> Pushing $SERVICE"
+          docker push "$ECR_REGISTRY/box-everything-$SERVICE:latest"
+          docker push "$ECR_REGISTRY/box-everything-$SERVICE:$VERSION"
+          docker push "$ECR_REGISTRY/box-everything-$SERVICE:$GIT_SHA"
+
+          echo "==> Rolling out $SERVICE on ECS"
+          aws ecs update-service \
+            --cluster box-everything \
+            --service "box-everything-$SERVICE" \
+            --force-new-deployment \
+            --query "service.serviceName" --output text
+        done

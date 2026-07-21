@@ -1,0 +1,42 @@
+# Same monorepo reasoning as project-2-ci.yml: must live at repo root,
+# scoped via path filters. This project has no unit tests (see the
+# project's README for why) - the meaningful CI signal here is "do all 3
+# images actually build," which catches broken Dockerfiles/dependencies
+# before they'd fail in CodeBuild.
+name: Project 3 - Box Everything CI
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "project-3-box-everything/**"
+  pull_request:
+    paths:
+      - "project-3-box-everything/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python syntax check
+        run: python -m py_compile project-3-box-everything/services/${{ matrix.service }}/main.py
+
+      - name: Build Docker image
+        run: docker build -t box-everything-${{ matrix.service }}:ci project-3-box-everything/services/${{ matrix.service }}
+
+      - name: Smoke-test the container responds on /health
+        run: |
+          docker run -d --name smoke-test -p 8000:8000 box-everything-${{ matrix.service }}:ci
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          echo "Container never became healthy"
+          docker logs smoke-test
+          exit 1

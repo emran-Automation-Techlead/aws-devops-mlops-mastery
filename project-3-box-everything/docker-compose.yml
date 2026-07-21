@@ -1,0 +1,83 @@
+# Local development only - nothing here is what runs in AWS. In AWS,
+# ECS Fargate schedules these same images (ecs.tf); there's no
+# docker-compose involved at all. What compose gives you locally that's
+# genuinely worth having: all 3 services + their dependencies start
+# together, on one shared network, addressable by service name - the
+# same mental model as ECS Service Discovery, without needing AWS.
+services:
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "8001:8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  product-service:
+    build: ./services/product-service
+    ports:
+      - "8002:8000"
+    networks:
+      - app-network
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "8003:8000"
+    environment:
+      # Compose's built-in DNS resolves these container names on
+      # app-network - no IPs, no /etc/hosts editing, no service registry
+      # to run yourself.
+      USER_SERVICE_URL: http://user-service:8000
+      PRODUCT_SERVICE_URL: http://product-service:8000
+    depends_on:
+      - user-service
+      - product-service
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+
+  # Provisioned for hands-on extension, not wired into any service by
+  # default: the exercise is to swap product-service's in-memory dict for
+  # real rows in here. Included so you have a real, running Postgres to
+  # practice against without also solving "how do I even get Postgres
+  # running" at the same time.
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: localdevpassword
+      POSTGRES_DB: box_everything
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

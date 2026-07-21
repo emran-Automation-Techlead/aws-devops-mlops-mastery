@@ -14,8 +14,8 @@ practices. No toy examples.
 |---|---------|----------|--------|
 | 1 | [Hello Cloud](project-1-hello-cloud/) | Deploy a static site to S3 + CloudFront + Route 53 + ACM | ✅ Built |
 | 2 | [Robot Builder](project-2-robot-builder/) | CI/CD pipeline: GitHub Actions → CodeBuild → CodeDeploy, zero-downtime | ✅ Built |
-| 3 | Box Everything | Docker microservices on ECR + ECS Fargate | ⏳ Next |
-| 4 | Command the Fleet | Kubernetes on EKS with Helm, HPA, Prometheus/Grafana/Loki | ⏳ Planned |
+| 3 | [Box Everything](project-3-box-everything/) | Docker microservices on ECR + ECS Fargate | ✅ Built |
+| 4 | Command the Fleet | Kubernetes on EKS with Helm, HPA, Prometheus/Grafana/Loki | ⏳ Next |
 | 5 | Teach the Machine | End-to-end MLOps: SageMaker → MLflow → EKS → drift detection → auto-retraining | ⏳ Planned |
 
 ## How to use this repo
