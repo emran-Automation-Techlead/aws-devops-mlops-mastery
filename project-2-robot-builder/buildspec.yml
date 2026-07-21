@@ -1,0 +1,36 @@
+# Read by AWS CodeBuild during the pipeline's Build stage.
+# This is a monorepo (5 projects in one repo), so every command below is
+# scoped to project-2-robot-builder/ - CodeBuild checks out the WHOLE repo,
+# not just this folder.
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo "Installing app dependencies..."
+      - cd project-2-robot-builder/app && npm ci
+
+  pre_build:
+    commands:
+      - echo "Running unit tests - a failure here stops the pipeline before anything gets deployed"
+      - npm test -- --ci
+
+  build:
+    commands:
+      - echo "No compile step for a plain Node.js app - this phase exists so the pipeline has a clear Build stage to report on"
+      - cd ../..
+
+artifacts:
+  # Everything CodeDeploy needs on the instance: the app itself, the
+  # lifecycle hook scripts, and appspec.yml telling CodeDeploy what to do
+  # with them. base-directory strips the monorepo prefix so the deployed
+  # artifact's root is project-2-robot-builder/, matching appspec.yml's
+  # expectations.
+  base-directory: project-2-robot-builder
+  files:
+    - appspec.yml
+    - scripts/**/*
+    - app/**/*
+  name: robot-builder-build-$(date +%Y-%m-%d)

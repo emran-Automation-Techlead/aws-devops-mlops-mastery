@@ -1,0 +1,21 @@
+{
+  "name": "robot-builder-app",
+  "version": "1.0.0",
+  "description": "5-endpoint task API - Project 2 of AWS DevOps Mastery",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest --runInBand",
+    "lint": "echo \"(add eslint here if you want stricter CI gates)\""
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
