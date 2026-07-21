@@ -4,9 +4,9 @@ Five progressive, end-to-end projects that take you from "I've never touched
 the cloud" to "I run a self-healing AI system in production." Each project
 builds on the last — same AWS account, growing skillset, growing architecture.
 
-Written so a smart 14-year-old could follow the reasoning, but every file is
-production-grade: real IAM policies, real error handling, real security
-practices. No toy examples.
+Written so the reasoning is easy to follow regardless of experience level,
+but every file is production-grade: real IAM policies, real error
+handling, real security practices. No toy examples.
 
 ## The Path
 

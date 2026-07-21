@@ -1,6 +1,6 @@
 ## PROJECT 3: "Box Everything" — Docker Containerization + AWS ECR + ECS Fargate
 
-### 🧠 What Is This? (Explain Like I'm 14)
+### 🧠 What Is This?
 
 "It works on my machine" is the most famous — and most annoying — phrase
 in software. Docker solves this forever by packaging your entire app —

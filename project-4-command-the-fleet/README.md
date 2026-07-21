@@ -1,6 +1,6 @@
 ## PROJECT 4: "Command the Fleet" — Kubernetes on AWS EKS with Full Observability
 
-### 🧠 What Is This? (Explain Like I'm 14)
+### 🧠 What Is This?
 
 ECS (Project 3) is great when you have a handful of services. But what if
 you have 100 different services, each needing different amounts of CPU

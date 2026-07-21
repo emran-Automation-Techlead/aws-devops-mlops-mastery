@@ -13,6 +13,13 @@ __pycache__/
 .venv/
 venv/
 
+# MLflow / local training artifacts (Project 5)
+mlruns/
+mlartifacts/
+*.parquet
+project-5-teach-the-machine/training/model_*/
+project-5-teach-the-machine/evaluation/evaluation_report.json
+
 # Node
 node_modules/
 

@@ -1,6 +1,6 @@
 ## PROJECT 1: "Hello Cloud" — Deploy a Website to AWS from Scratch
 
-### 🧠 What Is This? (Explain Like I'm 14)
+### 🧠 What Is This?
 
 Before you can run rockets, you need to understand fuel. This project
 teaches you how the internet actually works and how AWS stores and serves

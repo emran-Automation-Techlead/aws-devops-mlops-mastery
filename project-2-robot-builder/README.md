@@ -1,6 +1,6 @@
 ## PROJECT 2: "Robot Builder" — Full CI/CD Pipeline with GitHub Actions + AWS
 
-### 🧠 What Is This? (Explain Like I'm 14)
+### 🧠 What Is This?
 
 You shouldn't deploy code by hand. Every manual step is a chance to forget
 something, run it in the wrong order, or deploy the wrong version. CI/CD
