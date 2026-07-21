@@ -1,0 +1,34 @@
+awsRegion: us-east-1
+ecrRegistry: "" # <account-id>.dkr.ecr.<region>.amazonaws.com
+albGroupName: model-server
+serviceAccountRoleArn: "" # IRSA role ARN - see terraform/iam.tf output model_server_role_arn
+
+# Stable = the currently-approved production model. Canary = the
+# candidate being A/B tested. Both run simultaneously; the Ingress
+# (templates/ingress.yaml) splits traffic between them by weight - this
+# is what "80% traffic to old model, 20% to new" actually means at the
+# infrastructure level.
+stable:
+  imageTag: latest
+  modelArtifactS3Uri: "" # s3://.../model.tar.gz for the CURRENT approved model
+  replicas: 2
+  weight: 80
+
+canary:
+  imageTag: candidate
+  modelArtifactS3Uri: "" # s3://.../model.tar.gz for the CANDIDATE being tested
+  replicas: 1
+  weight: 20
+  # Once you've compared enough traffic in Grafana and trust the canary:
+  # promote it by setting stable.imageTag/modelArtifactS3Uri to match
+  # canary's values and stable.weight back to 100 - no new infrastructure,
+  # just a values change and `helm upgrade`.
+
+resources:
+  requests: { cpu: 250m, memory: 512Mi }
+  limits: { cpu: 500m, memory: 1Gi }
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilization: 70

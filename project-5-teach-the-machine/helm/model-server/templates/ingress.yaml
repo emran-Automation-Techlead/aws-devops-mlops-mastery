@@ -1,0 +1,38 @@
+# Weighted routing via the AWS Load Balancer Controller's annotation-
+# based "actions" feature: one virtual "action" backend
+# (weighted-routing) fans out to 2 real target groups by percentage.
+# This is the actual mechanism behind "80% traffic to old model, 20% to
+# new" - enforced at the ALB itself, not by application code making a
+# random choice.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: model-server
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: {{ .Values.albGroupName }}
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/actions.weighted-routing: |
+      {
+        "type": "forward",
+        "forwardConfig": {
+          "targetGroups": [
+            { "serviceName": "model-server-stable", "servicePort": "8000", "weight": {{ .Values.stable.weight }} },
+            { "serviceName": "model-server-canary", "servicePort": "8000", "weight": {{ .Values.canary.weight }} }
+          ]
+        }
+      }
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /predict
+            pathType: Prefix
+            backend:
+              service:
+                name: weighted-routing
+                port:
+                  name: use-annotation

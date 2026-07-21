@@ -1,0 +1,16 @@
+{{- range $variant := list "stable" "canary" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-server-{{ $variant }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: model-server
+    variant: {{ $variant }}
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+{{- end }}

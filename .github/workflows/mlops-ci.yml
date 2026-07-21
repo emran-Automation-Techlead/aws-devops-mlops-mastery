@@ -1,0 +1,89 @@
+# Same monorepo path-filter pattern as the other project-N-ci.yml files.
+# Named mlops-ci.yml (not project-5-ci.yml) since this is the one
+# workflow in the series that actually runs the ML logic itself - train
+# 3 models on synthetic data and confirm evaluate.py picks a sane winner
+# - not just a syntax/build check like Projects 3-4's CI.
+name: MLOps CI - Teach the Machine
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "project-5-teach-the-machine/**"
+  pull_request:
+    paths:
+      - "project-5-teach-the-machine/**"
+
+jobs:
+  pipeline-smoke-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project-5-teach-the-machine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r training/requirements.txt
+
+      - name: Generate synthetic data and engineer features
+        run: |
+          python data/generate_synthetic_data.py --rows 5000 --out /tmp/transactions.csv
+          python -c "
+          import pandas as pd
+          from features.feature_engineering_glue_job import engineer_features
+          df = pd.read_csv('/tmp/transactions.csv')
+          engineer_features(df).to_parquet('/tmp/features.parquet', index=False)
+          "
+
+      - name: Train all 3 model types
+        working-directory: project-5-teach-the-machine/training
+        run: |
+          for MODEL in logistic_regression xgboost neural_net; do
+            python train.py --model-type $MODEL --train-path /tmp/features.parquet \
+              --model-dir /tmp/model_$MODEL --mlflow-tracking-uri file:./mlruns
+          done
+
+      - name: Run evaluation and confirm a model was selected
+        working-directory: project-5-teach-the-machine/evaluation
+        run: |
+          python evaluate.py --mlflow-tracking-uri "file:../training/mlruns" --experiment-name fraud-detection
+          python -c "
+          import json
+          report = json.load(open('evaluation_report.json'))
+          assert 'selected' in report, 'no model was selected'
+          assert report['selected']['metrics']['roc_auc'] > 0.5, 'selected model is no better than random'
+          print('Smoke test passed:', report['selected']['model_type'], report['selected']['metrics'])
+          "
+
+      - name: Syntax-check the serving app and drift detector
+        run: |
+          python -m py_compile serving/app.py monitoring/drift_detector.py monitoring/compute_baseline_stats.py pipelines/sagemaker_pipeline.py
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project-5-teach-the-machine/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+      - run: terraform fmt -check -diff
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint project-5-teach-the-machine/helm/model-server
+      - run: |
+          helm template test project-5-teach-the-machine/helm/model-server \
+            --set ecrRegistry=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+            --namespace production

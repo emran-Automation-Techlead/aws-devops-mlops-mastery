@@ -16,7 +16,7 @@ handling, real security practices. No toy examples.
 | 2 | [Robot Builder](project-2-robot-builder/) | CI/CD pipeline: GitHub Actions → CodeBuild → CodeDeploy, zero-downtime | ✅ Built |
 | 3 | [Box Everything](project-3-box-everything/) | Docker microservices on ECR + ECS Fargate | ✅ Built |
 | 4 | [Command the Fleet](project-4-command-the-fleet/) | Kubernetes on EKS with Helm, HPA, Prometheus/Grafana/Loki | ✅ Built |
-| 5 | Teach the Machine | End-to-end MLOps: SageMaker → MLflow → EKS → drift detection → auto-retraining | ⏳ Next |
+| 5 | [Teach the Machine](project-5-teach-the-machine/) | End-to-end MLOps: SageMaker → MLflow → EKS → drift detection → auto-retraining | ✅ Built |
 
 ## How to use this repo
 

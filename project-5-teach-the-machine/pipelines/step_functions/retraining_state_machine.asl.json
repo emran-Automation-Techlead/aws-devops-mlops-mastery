@@ -1,0 +1,58 @@
+{
+  "Comment": "Fully automated retraining: triggered by monitoring/drift_detector.py when input-feature drift crosses the PSI threshold. No human required to complete a retrain cycle - a human only gets involved via the SNS alert (informational) and, per evaluate.py, the model itself still lands in PendingManualApproval status - the ONE deliberate human checkpoint before a new model actually receives traffic.",
+  "StartAt": "StartFeaturePipeline",
+  "States": {
+    "StartFeaturePipeline": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sagemaker:startPipelineExecution.sync",
+      "Parameters": {
+        "PipelineName": "fraud-detection-pipeline",
+        "PipelineExecutionDescription": "Drift-triggered retrain",
+        "PipelineParameters": [
+          { "Name": "RawDataS3Uri", "Value.$": "$.raw_data_s3_uri" },
+          { "Name": "MinRocAucImprovement", "Value": "0.0" }
+        ]
+      },
+      "ResultPath": "$.pipelineResult",
+      "Next": "CheckPipelineOutcome",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyPipelineFailed"
+        }
+      ]
+    },
+    "CheckPipelineOutcome": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.pipelineResult.PipelineExecutionStatus",
+          "StringEquals": "Succeeded",
+          "Next": "NotifyRetrainComplete"
+        }
+      ],
+      "Default": "NotifyPipelineFailed"
+    },
+    "NotifyRetrainComplete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${DriftAlertsTopicArn}",
+        "Subject": "Retraining pipeline completed",
+        "Message.$": "States.Format('Drift-triggered retrain finished. Check SageMaker Model Registry for a new PendingManualApproval model package if the new candidate beat the current one. Triggered by: {}', $.trigger_reason)"
+      },
+      "End": true
+    },
+    "NotifyPipelineFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${DriftAlertsTopicArn}",
+        "Subject": "ALERT: Retraining pipeline FAILED",
+        "Message.$": "States.Format('Drift-triggered retrain failed: {}. Manual investigation needed - drift was detected but no new model was produced.', $.error.Cause)"
+      },
+      "End": true
+    }
+  }
+}

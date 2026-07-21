@@ -1,0 +1,118 @@
+{
+  "title": "Fraud Model - MLOps Observability",
+  "uid": "fraud-model-mlops",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "tags": ["mlops", "fraud-detection"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Prediction latency (p50/p95/p99) - stable vs canary",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${prometheus_ds}" },
+      "description": "Sourced from Prometheus, scraped from model-server's /metrics (Project 4's Prometheus instance, reused). If the canary is meaningfully slower than stable, that alone can be a reason not to promote it, independent of accuracy.",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m])) by (le, job))",
+          "legendFormat": "{{job}} p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m])) by (le, job))",
+          "legendFormat": "{{job}} p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m])) by (le, job))",
+          "legendFormat": "{{job}} p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 2,
+      "title": "Prediction request rate - stable vs canary (should track the configured weight)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${prometheus_ds}" },
+      "description": "80/20 configured in helm/model-server/values.yaml should show up here as roughly an 80/20 request-count split - this panel is the actual proof the weighted Ingress routing is working, not just configured.",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{handler=\"/predict\"}[5m])) by (job)",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 3,
+      "title": "Drift score (PSI) by feature",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "cloudwatch", "uid": "${cloudwatch_ds}" },
+      "description": "Published by monitoring/drift_detector.py every run. PSI > 0.25 (the red threshold line) is what triggers the automated retraining Step Functions workflow.",
+      "targets": [
+        {
+          "namespace": "MLOps/DriftDetection",
+          "metricName": "PSI",
+          "dimensions": { "Feature": "*" },
+          "statistic": "Average",
+          "region": "default"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Model accuracy over time (by model type, each evaluation run)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "cloudwatch", "uid": "${cloudwatch_ds}" },
+      "description": "Published by evaluation/evaluate.py every pipeline run - one point per model type per evaluation, whether or not that run resulted in a new registered model. Watch for a declining trend across retrains, not just the absolute value.",
+      "targets": [
+        {
+          "namespace": "MLOps/ModelQuality",
+          "metricName": "roc_auc",
+          "dimensions": { "ModelType": "*" },
+          "statistic": "Average",
+          "region": "default"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 } }
+    },
+    {
+      "id": 5,
+      "title": "Fraud-flagged rate (data quality / sanity proxy)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "${prometheus_ds}" },
+      "description": "A crude but effective data-quality signal: if this suddenly jumps to near-0% or near-100%, it's far more likely a broken upstream feature pipeline than an actual real-world fraud pattern change - worth a sanity check before trusting a drift alert.",
+      "targets": [
+        {
+          "expr": "sum(rate(model_fraud_flagged_total[15m])) / sum(rate(http_requests_total{handler=\"/predict\"}[15m]))",
+          "legendFormat": "fraud-flagged rate"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    }
+  ],
+  "templating": {
+    "list": [
+      { "name": "prometheus_ds", "type": "datasource", "query": "prometheus", "current": {} },
+      { "name": "cloudwatch_ds", "type": "datasource", "query": "cloudwatch", "current": {} }
+    ]
+  }
+}

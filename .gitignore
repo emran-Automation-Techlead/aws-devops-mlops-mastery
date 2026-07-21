@@ -19,6 +19,7 @@ mlartifacts/
 *.parquet
 project-5-teach-the-machine/training/model_*/
 project-5-teach-the-machine/evaluation/evaluation_report.json
+project-5-teach-the-machine/terraform/.build/
 
 # Node
 node_modules/

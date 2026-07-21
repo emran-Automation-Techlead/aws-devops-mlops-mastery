@@ -1,0 +1,72 @@
+{{- range $variant, $cfg := (dict "stable" .Values.stable "canary" .Values.canary) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-server-{{ $variant }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: model-server
+    variant: {{ $variant }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app: model-server
+      variant: {{ $variant }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: model-server
+        variant: {{ $variant }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: model-server
+      # Model artifacts live in S3, not baked into the image - this is
+      # what lets the SAME image serve either variant: only which
+      # model.tar.gz gets downloaded at startup differs between stable
+      # and canary, driven entirely by values.yaml, no rebuild needed to
+      # promote a canary to stable.
+      initContainers:
+        - name: fetch-model
+          image: amazon/aws-cli:2.17.62
+          command:
+            - sh
+            - -c
+            - |
+              aws s3 cp "{{ $cfg.modelArtifactS3Uri }}" /tmp/model.tar.gz
+              tar -xzf /tmp/model.tar.gz -C /opt/ml/model
+          volumeMounts:
+            - name: model-artifact
+              mountPath: /opt/ml/model
+      containers:
+        - name: model-server
+          image: "{{ $.Values.ecrRegistry }}/model-server:{{ $cfg.imageTag }}"
+          ports:
+            - containerPort: 8000
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: model-artifact
+              mountPath: /opt/ml/model
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+      volumes:
+        - name: model-artifact
+          emptyDir: {}
+---
+{{- end }}

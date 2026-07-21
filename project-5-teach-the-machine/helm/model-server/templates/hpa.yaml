@@ -1,0 +1,26 @@
+# Only the stable Deployment auto-scales. The canary intentionally stays
+# at a fixed, small replica count (Values.canary.replicas) - it's only
+# receiving a deliberately small weighted slice of traffic (see
+# ingress.yaml), so it shouldn't need to scale, and NOT auto-scaling it
+# keeps the A/B comparison simpler: canary performance differences show
+# up as latency/error-rate changes, not confounded by a separate scaling
+# decision.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: model-server-stable
+  namespace: {{ .Release.Namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: model-server-stable
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetCPUUtilization }}

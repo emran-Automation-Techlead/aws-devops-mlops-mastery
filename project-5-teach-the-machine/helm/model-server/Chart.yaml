@@ -1,0 +1,10 @@
+apiVersion: v2
+name: model-server
+description: >-
+  Fraud detection model server, deployed on the same EKS cluster Project 4
+  provisioned. Two Deployments (stable + canary) behind one weighted
+  Ingress - what makes A/B testing a new model possible without a second
+  cluster or a second ALB.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
